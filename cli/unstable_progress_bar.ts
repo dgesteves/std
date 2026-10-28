@@ -17,7 +17,7 @@ export interface ProgressBarFormatter {
    */
   progressBar: string;
   /**
-   * The duration of the progress bar.
+   * The duration of the progress bar, in milliseconds.
    */
   time: number;
   /**
@@ -174,10 +174,18 @@ function clamp(value: number, min: number, max: number) {
  * import { delay } from "@std/async";
  * import { ProgressBar } from "@std/cli/unstable-progress-bar";
  *
+ * const timeFormat = new Intl.DurationFormat("en", {
+ *   style: "narrow",
+ *   secondsDisplay: "always",
+ * });
+ *
  * const bar = new ProgressBar({
  *   max: 100,
  *   formatter(formatter) {
- *     return `[${formatter.styledTime}] [${formatter.progressBar}] [${formatter.value}/${formatter.max} files]`;
+ *     const time = Temporal.Duration
+ *       .from({ milliseconds: formatter.time })
+ *       .round({ largestUnit: "hours", smallestUnit: "seconds", roundingMode: "trunc" });
+ *     return `[${timeFormat.format(time)}] [${formatter.progressBar}] [${formatter.value}/${formatter.max} files]`;
  *   },
  * });
  *
