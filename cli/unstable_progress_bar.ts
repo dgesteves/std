@@ -97,22 +97,40 @@ export interface ProgressBarOptions {
 
 const LINE_CLEAR = "\r\u001b[K";
 
-const timeFormatter = new Intl.DurationFormat(undefined, {
-  minutes: "2-digit",
-  seconds: "2-digit",
-});
-
-const DURATION_ROUNDING_OPTIONS: Temporal.DurationRoundingOptions = {
+const DURATION_ROUNDING_OPTIONS = {
   largestUnit: "minutes",
   smallestUnit: "seconds",
   roundingMode: "trunc",
-};
+} as const;
+
+interface DurationFormatter {
+  format(duration: Temporal.Duration): string;
+}
+
+let timeFormatter: DurationFormatter | undefined;
+
+function formatTime(milliseconds: number): string {
+  // `Intl.DurationFormat` and `Temporal` are not available in Deno v1.x, so
+  // they are looked up on first use and `mm:ss` is used as a fallback.
+  // deno-lint-ignore no-explicit-any
+  const { DurationFormat } = Intl as any;
+  if (DurationFormat === undefined || typeof Temporal === "undefined") {
+    const minutes = (milliseconds / 1000 / 60 | 0).toString().padStart(2, "0");
+    const seconds = (milliseconds / 1000 % 60 | 0).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }
+  timeFormatter ??= new DurationFormat(undefined, {
+    minutes: "2-digit",
+    seconds: "2-digit",
+  }) as DurationFormatter;
+  const duration = Temporal.Duration
+    .from({ milliseconds })
+    .round(DURATION_ROUNDING_OPTIONS);
+  return timeFormatter.format(duration);
+}
 
 function defaultFormatter(formatter: ProgressBarFormatter) {
-  const duration = Temporal.Duration
-    .from({ milliseconds: formatter.time })
-    .round(DURATION_ROUNDING_OPTIONS);
-  const styledTime = timeFormatter.format(duration);
+  const styledTime = formatTime(formatter.time);
   return `[${styledTime}] [${formatter.progressBar}] [${formatter.styledData}]`;
 }
 
